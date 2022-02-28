@@ -15,7 +15,7 @@ namespace RFID
 			public byte[] Buffer { get; set; }
 		}
 		
-		public abstract class ReaderObject : Object
+		public abstract class InterrogatorObject : Object
 		{
 			/// <summary>
 			/// The Environment Consist Of Several `TagObject` And This `ReaderObject`
@@ -45,7 +45,7 @@ namespace RFID
 		}
 
 		// A designated RFID environment should have and only have 1 reader
-		private readonly ReaderObject reader;
+		private readonly InterrogatorObject _interrogator;
 		// A designated RFID environment should have >= 1 Tag(s)
 		private readonly IList<TagObject> tagList = new List<TagObject>();
 		/// <summary>
@@ -54,10 +54,10 @@ namespace RFID
 		private bool _isReplyOccupied = false;
 
 		// Exclusive Constructor
-		public Environment(ReaderObject reader, params TagObject[] tags)
+		public Environment(InterrogatorObject interrogator, params TagObject[] tags)
 		{
-			this.reader = reader;
-			this.reader.SetEnvironment(this);
+			this._interrogator = interrogator;
+			this._interrogator.SetEnvironment(this);
 			foreach(var tag in tags)
 			{
 				tagList.Add(tag);
@@ -73,7 +73,7 @@ namespace RFID
 		/// <exception cref="Exception"></exception>
 		public void Send(Object @object, in byte[] message)
 		{
-			if (@object.GetType().IsSubclassOf(typeof(ReaderObject)))
+			if (@object.GetType().IsSubclassOf(typeof(InterrogatorObject)))
 			{
 				_isReplyOccupied = false;
 				var clonedMessage = message.Clone() as byte[];
@@ -85,16 +85,16 @@ namespace RFID
 			}
 			if (_isReplyOccupied)
 			{
-				reader.OnConflict();// Might be called multiple times
+				_interrogator.OnConflict();// Might be called multiple times
 				return;
 			}
 			if (@object.GetType().IsSubclassOf(typeof(TagObject)))
 			{
 				_isReplyOccupied = true;
-				reader.Receive(message);
+				_interrogator.Receive(message);
 				return;
 			}
-			throw new Exception($"The First Argument Type `{@object.GetType()}` Must Be `{typeof(ReaderObject)}` Or `{typeof(TagObject)}`");
+			throw new Exception($"The First Argument Type `{@object.GetType()}` Must Be `{typeof(InterrogatorObject)}` Or `{typeof(TagObject)}`");
 		}
 
 		

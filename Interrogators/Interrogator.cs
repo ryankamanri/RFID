@@ -3,9 +3,9 @@ using System.Threading;
 using System.Collections.Generic;
 using System.Text;
 
-namespace RFID.Readers
+namespace RFID.Interrogators
 {
-	class Reader : Environment.ReaderObject
+	class Interrogator : Environment.InterrogatorObject
 	{
         public override void OnConflict()
         {
