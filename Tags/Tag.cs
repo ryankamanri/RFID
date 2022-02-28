@@ -24,13 +24,13 @@ namespace RFID.Tags
 			return this;
 		}
 
-		public override void OnRequest(in byte[] require)
+		public override void OnRequest(Environment environment, in byte[] require)
 		{
             Console.WriteLine($"Tag {EPC} Receive Require {require[0]}");
 			if (require[0] == EPC)
             {
                 Console.WriteLine($"Tag {EPC} Reply {require[0]}");
-				Environment.Send(this, require);
+				environment.Send(this, require);
 			}
 				
 		}

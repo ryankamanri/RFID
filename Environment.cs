@@ -9,14 +9,21 @@ namespace RFID
 	{
 		public class Object
 		{
-			public Environment Environment { get; private set; }
+			/// <summary>
+			/// The Buffer That Every Object Has
+			/// </summary>
 			public byte[] Buffer { get; set; }
-
-			public void SetEnvironment(Environment env) => Environment = env;
 		}
 		
 		public abstract class ReaderObject : Object
 		{
+			/// <summary>
+			/// The Environment Consist Of Several `TagObject` And This `ReaderObject`
+			/// ** A `ReaderObject` Can And Only Can Located In 1 `Environment` **
+			/// </summary>
+			public Environment Environment { get; private set; }
+
+			public void SetEnvironment(Environment environment) => Environment = environment;
 			/// <summary>
 			/// Set Handler While Reader Receiving Message From Tag
 			/// </summary>
@@ -34,15 +41,17 @@ namespace RFID
 			/// Set Handler While Tag Receiving Request From Reader
 			/// </summary>
 			/// <param name="require"></param>
-			public abstract void OnRequest(in byte[] require);
+			public abstract void OnRequest(Environment environment, in byte[] require);
 		}
 
 		// A designated RFID environment should have and only have 1 reader
 		private readonly ReaderObject reader;
 		// A designated RFID environment should have >= 1 Tag(s)
 		private readonly IList<TagObject> tagList = new List<TagObject>();
-
-		private bool isReplyOccupied = false;
+		/// <summary>
+		/// Designated Only 1 Session In An Environment, This Flag Marked That Whether Reply (Tag -> Reader) Session Occupied
+		/// </summary>
+		private bool _isReplyOccupied = false;
 
 		// Exclusive Constructor
 		public Environment(ReaderObject reader, params TagObject[] tags)
@@ -51,31 +60,37 @@ namespace RFID
 			this.reader.SetEnvironment(this);
 			foreach(var tag in tags)
 			{
-				tag.SetEnvironment(this);
 				tagList.Add(tag);
 			}
 		}
 		
+		/// <summary>
+		/// ** Can Be Called By Reader Or Tag
+		/// ** Used To Send Message To Designated Environment
+		/// </summary>
+		/// <param name="object"></param>
+		/// <param name="message"></param>
+		/// <exception cref="Exception"></exception>
 		public void Send(Object @object, in byte[] message)
 		{
 			if (@object.GetType().IsSubclassOf(typeof(ReaderObject)))
 			{
-				isReplyOccupied = false;
+				_isReplyOccupied = false;
 				var clonedMessage = message.Clone() as byte[];
 				foreach (var tag in tagList)
 				{
-					Task.Run(() => tag.OnRequest(clonedMessage));
+					Task.Run(() => tag.OnRequest(this, clonedMessage));
 				}
 				return;
 			}
-			if (isReplyOccupied)
+			if (_isReplyOccupied)
 			{
 				reader.OnConflict();// Might be called multiple times
 				return;
 			}
 			if (@object.GetType().IsSubclassOf(typeof(TagObject)))
 			{
-				isReplyOccupied = true;
+				_isReplyOccupied = true;
 				reader.Receive(message);
 				return;
 			}
