@@ -9,12 +9,13 @@ namespace RFID.Interrogators
 	{
         public override void OnConflict()
         {
-            Console.WriteLine("On Conflict");
+            Console.WriteLine("Interrogator : On Conflict");
+            //...
         }
 
         public override void Receive(in byte[] response)
 		{
-            Console.WriteLine($"Reader Receive {response[0]}");
+            Console.WriteLine($"Interrogator : Receive {response[0]}");
 			if (response[0] == 1)
             {
                 Console.WriteLine("Send 2");
@@ -22,15 +23,28 @@ namespace RFID.Interrogators
 			}
 				
 			if(response[0] == 2)
-                Console.WriteLine("End of Transmission");
+                Console.WriteLine("Interrogator : End of Transmission");
 		}
 
 
 		public void Start()
 		{
-            Console.WriteLine("Reader Send 1");
-			Environment.Send(this, new byte[] { 1 });
-			while (true) Thread.Sleep(500);
+			var commandList = new List<ushort>()
+			{
+				Commands.Query,
+				Commands.Query,
+				Commands.ACK,
+				Commands.Req_RN,
+				Commands.Access,
+				Commands.Kill
+			};
+			foreach (var command in commandList)
+			{
+				Console.WriteLine($"Interrogator : Send Command {command}");
+				Environment.Send(this, BitConverter.GetBytes(command));
+				Thread.Sleep(100);
+			}
+			
 		}
 	}
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RFID
@@ -40,8 +41,8 @@ namespace RFID
 			/// <summary>
 			/// Set Handler While Tag Receiving Request From Reader
 			/// </summary>
-			/// <param name="require"></param>
-			public abstract void OnRequest(Environment environment, in byte[] require);
+			/// <param name="request"></param>
+			public abstract void OnRequest(Environment environment, in byte[] request);
 		}
 
 		// A designated RFID environment should have and only have 1 reader
@@ -80,6 +81,7 @@ namespace RFID
 				foreach (var tag in tagList)
 				{
 					Task.Run(() => tag.OnRequest(this, clonedMessage));
+					
 				}
 				return;
 			}
