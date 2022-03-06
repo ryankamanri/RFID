@@ -12,6 +12,8 @@ namespace RFID.Tags
 
 		public ulong EPC { get; private set; }
 
+		private int Slot = int.MaxValue;
+
 		public Tag(ulong epc)
 		{
 			State = TagState.ReadyState;
@@ -27,15 +29,6 @@ namespace RFID.Tags
 		/// <param name="request"></param>
 		public override void OnRequest(Environment environment, in byte[] request)
 		{
-			////////////////////////////////////////////////////////////
-			// Function Test
-			
-			// Console.WriteLine($"Tag {EPC} Receive Require {request[0]}");
-			// if (request[0] == EPC)
-			// {
-			// 	Console.WriteLine($"Tag {EPC} Reply {request[0]}");
-			// 	environment.Send(this, request);
-			// }
 			
 			
 			// //////////////////////////////////////////////////////////////////////////
@@ -84,6 +77,7 @@ namespace RFID.Tags
 					Console.WriteLine($"Tag${EPC} : Matched Query Command");
 					State = TagState.ArbitrateState;
 					Console.WriteLine($"Tag${EPC} : State => ArbitrateState");
+					//environment.Send(this, request);
 					//...
 					break;
 				default:
@@ -99,8 +93,6 @@ namespace RFID.Tags
 			{
 				case Commands.Query:
 					Console.WriteLine($"Tag${EPC} : Matched Query Command");
-					// If Slot = 0, Reply RN16, And State = Reply
-					State = TagState.ReplyState;
 					Console.WriteLine($"Tag${EPC} : State => ReplyState");
 					//...
 					break;
@@ -112,6 +104,8 @@ namespace RFID.Tags
 					break;
 				case Commands.QueryRep:
 					Console.WriteLine($"Tag${EPC} : Matched QueryRep Command");
+					// If Slot = 0, Reply RN16, And State = Reply
+					State = TagState.ReplyState;
 					//...
 					break;
 				default:

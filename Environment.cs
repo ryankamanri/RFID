@@ -54,6 +54,11 @@ namespace RFID
 		/// </summary>
 		private bool _isReplyOccupied = false;
 
+		/// <summary>
+		/// Designated Whether Replied In An Interaction
+		/// </summary>
+		private bool _isReplied = false;
+
 		// Exclusive Constructor
 		public Environment(InterrogatorObject interrogator, params TagObject[] tags)
 		{
@@ -77,16 +82,18 @@ namespace RFID
 			if (@object.GetType().IsSubclassOf(typeof(InterrogatorObject)))
 			{
 				_isReplyOccupied = false;
+				_isReplied = false;
 				var clonedMessage = message.Clone() as byte[];
 				foreach (var tag in tagList)
 				{
 					Task.Run(() => tag.OnRequest(this, clonedMessage));
-					
 				}
 				return;
 			}
+			if (_isReplied) return;
 			if (_isReplyOccupied)
 			{
+				_isReplied = true;
 				_interrogator.OnConflict();// Might be called multiple times
 				return;
 			}
@@ -94,6 +101,7 @@ namespace RFID
 			{
 				_isReplyOccupied = true;
 				_interrogator.Receive(message);
+				_isReplied = true;
 				return;
 			}
 			throw new Exception($"The First Argument Type `{@object.GetType()}` Must Be `{typeof(InterrogatorObject)}` Or `{typeof(TagObject)}`");
