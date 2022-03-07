@@ -4,10 +4,11 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace RFID
+namespace RFID.Environments
 {
 	public class Environment
 	{
+		
 		public class Object
 		{
 			/// <summary>
@@ -15,7 +16,7 @@ namespace RFID
 			/// </summary>
 			public byte[] Buffer { get; set; }
 		}
-		
+
 		public abstract class InterrogatorObject : Object
 		{
 			/// <summary>
@@ -35,7 +36,7 @@ namespace RFID
 			/// </summary>
 			public abstract void OnConflict();
 		}
-		
+
 		public abstract class TagObject : Object
 		{
 			/// <summary>
@@ -44,6 +45,11 @@ namespace RFID
 			/// <param name="request"></param>
 			public abstract void OnRequest(Environment environment, in byte[] request);
 		}
+
+		private const int SEND_FRAME_TIME = 100;
+
+		// Represent Specialized Channel Of The Environment
+		private Channel _channel = new Channel();
 
 		// A designated RFID environment should have and only have 1 reader
 		private readonly InterrogatorObject _interrogator;
@@ -62,14 +68,14 @@ namespace RFID
 		// Exclusive Constructor
 		public Environment(InterrogatorObject interrogator, params TagObject[] tags)
 		{
-			this._interrogator = interrogator;
-			this._interrogator.SetEnvironment(this);
-			foreach(var tag in tags)
+			_interrogator = interrogator;
+			_interrogator.SetEnvironment(this);
+			foreach (var tag in tags)
 			{
 				tagList.Add(tag);
 			}
 		}
-		
+
 		/// <summary>
 		/// ** Can Be Called By Reader Or Tag
 		/// ** Used To Send Message To Designated Environment
@@ -81,8 +87,6 @@ namespace RFID
 		{
 			if (@object.GetType().IsSubclassOf(typeof(InterrogatorObject)))
 			{
-				_isReplyOccupied = false;
-				_isReplied = false;
 				var clonedMessage = message.Clone() as byte[];
 				foreach (var tag in tagList)
 				{
@@ -90,24 +94,22 @@ namespace RFID
 				}
 				return;
 			}
-			if (_isReplied) return;
-			if (_isReplyOccupied)
+			if (_channel.IsOccupied)
 			{
-				_isReplied = true;
 				_interrogator.OnConflict();// Might be called multiple times
 				return;
 			}
 			if (@object.GetType().IsSubclassOf(typeof(TagObject)))
 			{
-				_isReplyOccupied = true;
-				_interrogator.Receive(message);
-				_isReplied = true;
+				_channel.Occupy(SEND_FRAME_TIME);
+				var clonedMessage = message.Clone() as byte[];
+				Task.Run(() => _interrogator.Receive(clonedMessage));
 				return;
 			}
 			throw new Exception($"The First Argument Type `{@object.GetType()}` Must Be `{typeof(InterrogatorObject)}` Or `{typeof(TagObject)}`");
 		}
 
-		
+
 
 	}
 }

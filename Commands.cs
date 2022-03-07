@@ -8,6 +8,8 @@ namespace RFID
         public const ushort ACK = 0x1;
         public const ushort Query = 0x8;
         public const ushort QueryAdjust = 0x9;
+        public const byte QueryAdjust_Up = 0x6;
+        public const byte QueryAdjust_Down = 0x3;
         public const ushort Select = 0xa;
         public const ushort Req_RN = 0xc1;
         public const ushort Read = 0xc2;

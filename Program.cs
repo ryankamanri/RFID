@@ -1,7 +1,15 @@
 ﻿using System;
 using System.Threading;
+using RFID.Environments;
 using RFID.Tags;
 using RFID.Interrogators;
+using Environment = RFID.Environments.Environment;
+
+/// <summary>
+///  An RFID EPCglobal Transmission Protocol Class 1 Generation 2 Emulator.
+///  
+/// Author : Ryan Kamanri
+/// </summary>
 namespace RFID
 {
 	internal static class Program
@@ -18,10 +26,11 @@ namespace RFID
 			var interrogator = new Interrogator();
 
 			var env = new Environment(interrogator, tag1, tag2, tag3, tag4, tag5, tag6);
-			
-			interrogator.Start();
-			
-			while (true) Thread.Sleep(500);
+
+            interrogator.Start();
+
+
+            while (true) Thread.Sleep(500);
 		}
 	}
 }
