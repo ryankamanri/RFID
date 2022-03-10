@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace RFID.Tags
+namespace RFID.Environments
 {
 	public enum TagState
 	{

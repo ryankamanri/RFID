@@ -12,7 +12,7 @@ namespace RFID.Interrogators
 {
 	class Interrogator : Environment.InterrogatorObject
 	{
-		private const int INTERVAL = 200;
+		
 		private const int QUERY_REPEAT_TIMES = 3;
 
 		private readonly byte[] _QArea = new byte[1000];
@@ -22,13 +22,14 @@ namespace RFID.Interrogators
 
 		private Task _queryRepeatTask;
 		private bool _isQueryRepeatTaskCanceled = false;
+		private bool _isReceiveTaskCanceled = false;
 
-		private TagState _expectedTagState = TagState.ReadyState;
+		
 
-		private void Log(string message)
-		{
-			Console.WriteLine($"Interrogator : {message}");
-		}
+		
+
+		public event Func<Task<byte[]>> OnOpen; 
+		public event Func<byte[], Task<byte[]>> OnReceive;
 
 		public Interrogator()
 		{
@@ -37,15 +38,21 @@ namespace RFID.Interrogators
 
 		public override void OnConflict()
 		{
-			// Cancel The Query Repeat Task
+			// Cancel The Query Repeat Task And Receive Task.
 			_isQueryRepeatTaskCanceled = true;
-
+			_isReceiveTaskCanceled = true;
 			Log("ON CONFLICT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 		}
 
 		public override void Receive(in byte[] response)
 		{
-			switch(_expectedTagState)
+			Thread.Sleep(INTERVAL);
+			if (_isReceiveTaskCanceled)
+			{
+				_isReceiveTaskCanceled = false;
+				return;
+			}
+			switch (_expectedTagState)
 			{
 				case TagState.ArbitrateState:
 					OnArbitrateStateCommandReply(response);
@@ -63,6 +70,8 @@ namespace RFID.Interrogators
 					OnSecuredStateCommandReply(response);
 					break;
 			}
+			
+
 		}
 
 
@@ -75,6 +84,7 @@ namespace RFID.Interrogators
 			_isQueryRepeatTaskCanceled = true;
 
 			// Send The ACK Command With RN16
+			
 			Log($"Send ACK With RN16 = {RN16}");
 			var ACKCommand = BitConverter.GetBytes(Commands.ACK).Concat(BitConverter.GetBytes(RN16));
 			Environment.Send(this, ACKCommand);
@@ -82,17 +92,27 @@ namespace RFID.Interrogators
 
 		private void OnReplyStateCommandReply(byte[] response)
 		{
-			throw new NotImplementedException();
+			_expectedTagState = TagState.AcknowledgedState;
+			var EPC = BitConverter.ToInt64(response.Take(8).ToArray());
+			Log($"Receive EPC = {EPC}");
+			// Send Req_RN with RN16
+			var commandBytes = BitConverter.GetBytes(Commands.Req_RN).Concat(BitConverter.GetBytes(RN16));
+			Environment.Send(this, commandBytes);
 		}
 
-		private void OnAcknowledgedStateCommandReply(byte[] response)
+		private async void OnAcknowledgedStateCommandReply(byte[] response)
 		{
-			throw new NotImplementedException();
+			_expectedTagState = TagState.OpenState;
+			Log($"Receive Handle : {BitConverter.ToUInt16(response)}");
+			var commandBytes = await OnOpen();
+			Log($"Send Command");
+			Environment.Send(this, commandBytes);
 		}
 
-		private void OnOpenStateCommandReply(byte[] response)
+		private async void OnOpenStateCommandReply(byte[] response)
 		{
-			throw new NotImplementedException();
+			Log("Receive On OpenState");
+			// Environment.Send(this, await OnReceive(response));
 		}
 
 		private void OnSecuredStateCommandReply(byte[] response)
@@ -113,12 +133,12 @@ namespace RFID.Interrogators
 
 			Log($"Send Query Command, Q = {queryBytes[2] & 0x0f }");
 			Environment.Send(this, queryBytes);
-			Thread.Sleep(INTERVAL * 2);
+			Thread.Sleep(INTERVAL);
 
 			_expectedTagState = TagState.ArbitrateState;
 			Log($"Send Query Command, Q = {queryBytes[2] & 0x0f }");
 			Environment.Send(this, queryBytes);
-			Thread.Sleep(INTERVAL * 2);
+			Thread.Sleep(INTERVAL);
 
 			// Recursive Send QueryRepeat Until Be Canceled
 			_isQueryRepeatTaskCanceled = false;
@@ -131,14 +151,15 @@ namespace RFID.Interrogators
                     if (_isQueryRepeatTaskCanceled) return;
                     Log($"Send QueryRepeat Command");
                     Environment.Send(this, queryRepCommand);
-                    Thread.Sleep(INTERVAL * 2);
+                    Thread.Sleep(REPEAT_INTERVAL);
                 }
-                // Q-1, Send Query Adjust Sign.
+				// Q-1, Send Query Adjust Sign.
+				if (_isQueryRepeatTaskCanceled) return;
                 Log("Send QueryAdjust Command, Subtract 1");
                 Q--;
                 var queryAdjustCommand = BitConverter.GetBytes(Commands.QueryAdjust).Concat(Commands.QueryAdjust_Down);
                 Environment.Send(this, queryAdjustCommand);
-                Thread.Sleep(INTERVAL * 2);
+                Thread.Sleep(REPEAT_INTERVAL);
 
             }
 

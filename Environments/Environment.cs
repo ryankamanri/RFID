@@ -3,22 +3,27 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+// ReSharper disable All
 
 namespace RFID.Environments
 {
 	public class Environment
 	{
+		private const int SEND_FRAME_TIME = 10;
 		
 		public class Object
 		{
 			/// <summary>
-			/// The Buffer That Every Object Has
+			/// Send Message Interval 
 			/// </summary>
-			public byte[] Buffer { get; set; }
+			public const int INTERVAL = 50;
+
+			public const int REPEAT_INTERVAL = 300;
 		}
 
 		public abstract class InterrogatorObject : Object
 		{
+			protected TagState _expectedTagState = TagState.ReadyState;
 			/// <summary>
 			/// The Environment Consist Of Several `TagObject` And This `ReaderObject`
 			/// ** A `ReaderObject` Can And Only Can Located In 1 `Environment` **
@@ -35,21 +40,41 @@ namespace RFID.Environments
 			/// Set Handler While Reader Receiving CONFLICT Message From Several Tags
 			/// </summary>
 			public abstract void OnConflict();
+			
+			protected void Log(string message, ConsoleColor color = ConsoleColor.Red)
+			{
+				var originColor = Console.ForegroundColor;
+				if (originColor != color) Console.ForegroundColor = color;
+				Console.WriteLine($"Interrogator(Expect {_expectedTagState}) : {message}");
+				Console.ForegroundColor = originColor;
+			}
 		}
 
 		public abstract class TagObject : Object
 		{
+			public TagState State { get; protected set; }
+
+			public ulong EPC { get; protected set; }
+			public ulong PID { get; protected set; }
 			/// <summary>
 			/// Set Handler While Tag Receiving Request From Reader
 			/// </summary>
 			/// <param name="request"></param>
 			public abstract void OnRequest(Environment environment, in byte[] request);
+			
+			protected void Log(string message, ConsoleColor color = ConsoleColor.White)
+			{
+				var originColor = Console.ForegroundColor;
+				if (originColor != color) Console.ForegroundColor = color;
+				Console.WriteLine($"Tag${EPC}({State}) : {message}");
+				Console.ForegroundColor = originColor;
+			}
 		}
 
-		private const int SEND_FRAME_TIME = 100;
+		
 
 		// Represent Specialized Channel Of The Environment
-		private Channel _channel = new Channel();
+		private Channel _channel;
 
 		// A designated RFID environment should have and only have 1 reader
 		private readonly InterrogatorObject _interrogator;
@@ -66,8 +91,9 @@ namespace RFID.Environments
 		private bool _isReplied = false;
 
 		// Exclusive Constructor
-		public Environment(InterrogatorObject interrogator, params TagObject[] tags)
+		public Environment(Channel channel, InterrogatorObject interrogator, params TagObject[] tags)
 		{
+			_channel = channel;
 			_interrogator = interrogator;
 			_interrogator.SetEnvironment(this);
 			foreach (var tag in tags)
@@ -94,14 +120,15 @@ namespace RFID.Environments
 				}
 				return;
 			}
+			Thread.Sleep(Rand.U16(0,0xff));
 			if (_channel.IsOccupied)
 			{
 				_interrogator.OnConflict();// Might be called multiple times
 				return;
 			}
+			_channel.Occupy(SEND_FRAME_TIME);
 			if (@object.GetType().IsSubclassOf(typeof(TagObject)))
 			{
-				_channel.Occupy(SEND_FRAME_TIME);
 				var clonedMessage = message.Clone() as byte[];
 				Task.Run(() => _interrogator.Receive(clonedMessage));
 				return;

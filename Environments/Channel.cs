@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace RFID.Environments
 {
-	class Channel
+	public class Channel
 	{
 		public bool IsOccupied { get => RestOccupiedMilliseconds != 0; }
 
