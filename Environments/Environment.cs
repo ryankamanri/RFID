@@ -120,7 +120,7 @@ namespace RFID.Environments
 				}
 				return;
 			}
-			Thread.Sleep(Rand.U16(0,0xff));
+			Thread.Sleep(Rand.U16(0,0xf));
 			if (_channel.IsOccupied)
 			{
 				_interrogator.OnConflict();// Might be called multiple times
