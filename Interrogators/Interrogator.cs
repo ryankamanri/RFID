@@ -26,8 +26,11 @@ namespace RFID.Interrogators
 
         private int _conflictCountEveryQueryRep = 0;
 
+        private int _conflictSlotTimes = 0;
+
         private int _tagThreadCount = 0;
-        private Mutex _tagThreadMutex = new Mutex();
+
+        private bool _isPauseRepeatTask = false;
 
         private Channel _channel = new Channel();
 
@@ -46,21 +49,40 @@ namespace RFID.Interrogators
                 $"ON CONFLICT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!, Thread : {Thread.CurrentThread.ManagedThreadId}");
             // Cancel The Receive Task. And Send QueryAdjust (Q++)
             _isReceiveTaskCanceled = true;
+            
 
-
-            if (_conflictCountEveryQueryRep >= (_QArea[0] & 0x0f) / 4)
+            if (_conflictCountEveryQueryRep >= 0)
             {
-                _conflictCountEveryQueryRep = int.MinValue;
                 
-                Task.Run(() =>
+                _conflictCountEveryQueryRep = int.MinValue;
+                _conflictSlotTimes++;
+
+                if (_conflictSlotTimes > (_QArea[0] & 0x0f) / 4)
                 {
-                    Thread.CurrentThread.Priority = ThreadPriority.Lowest;
-                    Thread.Sleep(SLOT_TIME);
-                    if(_channel.IsOccupied) return;
-                    Log("AFTER SLOT_TIME _isReceiveTaskCanceled => false");
-                    _isReceiveTaskCanceled = false;
-                    _conflictCountEveryQueryRep = 0;
-                });
+                    _isPauseRepeatTask = true;
+                    Log($"There Are TOO MANY CONFLICTS, _isPauseRepeatTask = {_isPauseRepeatTask}");
+                    Task.Run(() =>
+                    {
+                        Thread.CurrentThread.Priority = ThreadPriority.Lowest;
+                        Thread.Sleep(SLOT_TIME);
+                        
+                        Log("AFTER SLOT_TIME _isReceiveTaskCanceled => false");
+                        _isReceiveTaskCanceled = false;
+                        
+                        _conflictSlotTimes = 0;
+                        _conflictCountEveryQueryRep = 0;
+                    });
+                }
+                else
+                {
+                    Log($"_conflictSlotTimes = {_conflictSlotTimes}, Still Wait Conflicts...");
+                    Task.Run(() =>
+                    {
+                        Thread.CurrentThread.Priority = ThreadPriority.Lowest;
+                        Thread.Sleep(SLOT_TIME);
+                        _conflictCountEveryQueryRep = 0;
+                    });
+                }
                 
             }
 
@@ -114,15 +136,16 @@ namespace RFID.Interrogators
             
             
             // If Interrupt Happened, Cancel Sending
-            Log($"AFTER HALF_SLOT_TIME _isReceiveTaskCanceled : {_isReceiveTaskCanceled}");
-            Log($"Pause The Query Repeat Task");
-            // Cancel The Query Repeat Task
-            _isQueryRepeatTaskCanceled = true;
+            Log($"AFTER HALF_SLOT_TIME _isReceiveTaskCanceled : {_isReceiveTaskCanceled}, _isPauseRepeatTask = {_isPauseRepeatTask}");
+            
             
             if (_isReceiveTaskCanceled)
             {
-                // Log("_isReceiveTaskCanceled => false");
-                // _isReceiveTaskCanceled = false;
+                if(!_isPauseRepeatTask) return;
+                
+                Log($"Pause The Query Repeat Task, Send New Query");
+                // Pause The Query Repeat Task
+                _isQueryRepeatTaskCanceled = true;
                 
                 _QArea[0] = _QArea[++_QIndex];
                 var queryCommand = BitConverter.GetBytes(Commands.Query).Concat(_QArea[0]);
@@ -134,6 +157,13 @@ namespace RFID.Interrogators
                 return;
             }
             
+            Log($"Pause The Query Repeat Task, Send ACK Command");
+            // Pause The Query Repeat Task
+            _isQueryRepeatTaskCanceled = true;
+
+            // Here Reply The ACK Block
+            _conflictSlotTimes = 0;
+            _isPauseRepeatTask = false;
             
             _expectedTagState = TagState.ReplyState;
             Log($"Send ACK With RN16 = {RN16}");
