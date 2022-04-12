@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,16 +10,19 @@ namespace RFID.Environments
 {
 	public class Environment
 	{
-		private const int SEND_FRAME_TIME = 10;
+		private const int SEND_FRAME_TIME = Object.HALF_SLOT_TIME;
+		
+		private const bool IS_LOG_INTERREGATOR = true;
+		private const bool IS_LOG_TAG = false;
 		
 		public class Object
 		{
 			/// <summary>
 			/// Send Message Interval 
 			/// </summary>
-			public const int INTERVAL = 50;
+			public const int HALF_SLOT_TIME = SLOT_TIME / 2;
 
-			public const int REPEAT_INTERVAL = 300;
+			public const int SLOT_TIME = 100;
 		}
 
 		public abstract class InterrogatorObject : Object
@@ -43,6 +47,7 @@ namespace RFID.Environments
 			
 			protected void Log(string message, ConsoleColor color = ConsoleColor.Red)
 			{
+				if(!IS_LOG_INTERREGATOR) return;
 				var originColor = Console.ForegroundColor;
 				if (originColor != color) Console.ForegroundColor = color;
 				Console.WriteLine($"Interrogator(Expect {_expectedTagState}) : {message}");
@@ -64,6 +69,7 @@ namespace RFID.Environments
 			
 			protected void Log(string message, ConsoleColor color = ConsoleColor.White)
 			{
+				if(!IS_LOG_TAG) return;
 				var originColor = Console.ForegroundColor;
 				if (originColor != color) Console.ForegroundColor = color;
 				Console.WriteLine($"Tag${EPC}({State}) : {message}");
@@ -74,12 +80,16 @@ namespace RFID.Environments
 		
 
 		// Represent Specialized Channel Of The Environment
-		private Channel _channel;
+		public Channel Channel { get; private set; }
+
+		private Mutex _mutex = new Mutex();
 
 		// A designated RFID environment should have and only have 1 reader
 		private readonly InterrogatorObject _interrogator;
 		// A designated RFID environment should have >= 1 Tag(s)
 		private readonly IList<TagObject> tagList = new List<TagObject>();
+
+		public int TagCount => tagList.Count;
 		/// <summary>
 		/// Designated Only 1 Session In An Environment, This Flag Marked That Whether Reply (Tag -> Reader) Session Occupied
 		/// </summary>
@@ -93,7 +103,7 @@ namespace RFID.Environments
 		// Exclusive Constructor
 		public Environment(Channel channel, InterrogatorObject interrogator, params TagObject[] tags)
 		{
-			_channel = channel;
+			Channel = channel;
 			_interrogator = interrogator;
 			_interrogator.SetEnvironment(this);
 			foreach (var tag in tags)
@@ -113,6 +123,7 @@ namespace RFID.Environments
 		{
 			if (@object.GetType().IsSubclassOf(typeof(InterrogatorObject)))
 			{
+				Channel.CancelOccupy();
 				var clonedMessage = message.Clone() as byte[];
 				foreach (var tag in tagList)
 				{
@@ -120,17 +131,25 @@ namespace RFID.Environments
 				}
 				return;
 			}
-			Thread.Sleep(Rand.U16(0,0xf));
-			if (_channel.IsOccupied)
+
+			_mutex.WaitOne();
+			if (Channel.IsOccupied)
 			{
+				Thread.CurrentThread.Priority = ThreadPriority.Highest;
 				_interrogator.OnConflict();// Might be called multiple times
+				_mutex.ReleaseMutex();
+				Thread.CurrentThread.Priority = ThreadPriority.Normal;
 				return;
 			}
-			_channel.Occupy(SEND_FRAME_TIME);
+			Channel.Occupy(SEND_FRAME_TIME);
+			_mutex.ReleaseMutex();
+
 			if (@object.GetType().IsSubclassOf(typeof(TagObject)))
 			{
 				var clonedMessage = message.Clone() as byte[];
-				Task.Run(() => _interrogator.Receive(clonedMessage));
+
+				_interrogator.Receive(clonedMessage);
+
 				return;
 			}
 			throw new Exception($"The First Argument Type `{@object.GetType()}` Must Be `{typeof(InterrogatorObject)}` Or `{typeof(TagObject)}`");

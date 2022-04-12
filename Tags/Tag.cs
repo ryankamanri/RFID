@@ -67,7 +67,7 @@ namespace RFID.Tags
 					OnSecuredStateCommand(environment, command, request);
 					break;
 				default:
-					Log($"Unmatched Command : {command}, Execute Default Task");
+					Log($"Unmatched Command : {command}, Execute Default Task", ConsoleColor.Black);
 					break;
 					
 			}
@@ -114,42 +114,40 @@ namespace RFID.Tags
 				case Commands.QueryAdjust:
 				case Commands.QueryRep:
 					Log("Matched QueryAdjust/QueryRep Command");
-					if (_Slot != 0)
-					{
-						if(command == Commands.QueryAdjust)
-						{
-							// Adjust Q By Command UpDn Code
-							switch(request[2] & 0x07)
-							{
-								case Commands.QueryAdjust_Up:
-									_Q++;
-									break;
-								case Commands.QueryAdjust_Down:
-									_Q--;
-									break;
-							}
-							// Reset Slot
-							_Slot = Rand.U16(0, (int)Math.Pow(2, _Q));
-							Log($"Reset Slot = {_Slot}");
-						}
-						_Slot--;
-						Log($"Slot = {_Slot}");
-						break;
-					}
-					// If Slot = 0, Reply RN16, And State = Reply
-					// Using Pure Aloha, Resend Reply After A Random Time
-					Log("State => ReplyState", ConsoleColor.Yellow);
-					State = TagState.ReplyState;
-					_RN16 = Rand.U16();
-					var replyBytes = BitConverter.GetBytes(_RN16);
 					
-					while(!_isReplyCanceled)
+					if(command == Commands.QueryAdjust)
 					{
+						// Adjust Q By Command UpDn Code
+						switch(request[2] & 0x07)
+						{
+							case Commands.QueryAdjust_Up:
+								_Q++;
+								break;
+							case Commands.QueryAdjust_Down:
+								_Q--;
+								break;
+						}
+						// Reset Slot
+						_Slot = Rand.U16(0, (int)Math.Pow(2, _Q));
+						Log($"Reset Slot = {_Slot}");
+					}
+					
+					Log($"Slot = {_Slot}");
+					
+					if (_Slot == 0)
+					{
+						// If Slot = 0, Reply RN16, And State = Reply
+					
+						Log("State => ReplyState", ConsoleColor.Yellow);
+						State = TagState.ReplyState;
+						_RN16 = Rand.U16();
+						var replyBytes = BitConverter.GetBytes(_RN16);
+					
 						Log($"Sending RN16 {_RN16}", ConsoleColor.Yellow);
 						environment.Send(this, replyBytes);
-						Thread.Sleep(Rand.U16(0xff ,0xfff));// 256 - 4, 096 ms
+						
 					}
-					
+					_Slot--;
 					// ...
 					break;
 				default:
@@ -189,6 +187,11 @@ namespace RFID.Tags
 					break;
 				case Commands.Query:
 					Log("Matched Query Command" ,ConsoleColor.Yellow);
+					// Start A New Round
+					State = TagState.ArbitrateState;
+					_Q = request[2] & 0x0f;
+					_Slot = Rand.U16(0, (int)Math.Pow(2, _Q));
+					Log($"Slot = {_Slot}");
 					break;
 				case Commands.QueryAdjust:
 					Log("Matched QueryAdjust Command", ConsoleColor.Yellow);
@@ -301,33 +304,33 @@ namespace RFID.Tags
 			switch (command)
 			{
 				case Commands.Kill:
-					Log("Matched Kill Command");
+					Log("Matched Kill Command", ConsoleColor.Black);
 					State = TagState.KilledState;
-					Log("State => KilledState");
+					Log("State => KilledState", ConsoleColor.Black);
 					//...
 					break;
 				case Commands.Req_RN:
-					Log("Matched Req_RN Command");
+					Log("Matched Req_RN Command", ConsoleColor.Black);
 					//...
 					break;
 				case Commands.Read:
-					Log("Matched Read Command");
+					Log("Matched Read Command", ConsoleColor.Black);
 					//...
 					break;
 				case Commands.Write:
-					Log("Matched Write Command");
+					Log("Matched Write Command", ConsoleColor.Black);
 					//...
 					break;
 				case Commands.Lock:
-					Log("Matched Lock Command");
+					Log("Matched Lock Command", ConsoleColor.Black);
 					//...
 					break;
 				case Commands.Select:
 				case Commands.QueryRep: 
 				case Commands.QueryAdjust:
-					Log("Matched Select/QueryRep/QueryAdjust Command");
+					Log("Matched Select/QueryRep/QueryAdjust Command", ConsoleColor.Black);
 					State = TagState.ReadyState;
-					Log("State => ReadyState");
+					Log("State => ReadyState", ConsoleColor.Black);
 					//...
 					break;
 			}

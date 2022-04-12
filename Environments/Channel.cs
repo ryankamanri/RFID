@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,29 +9,27 @@ namespace RFID.Environments
 {
 	public class Channel
 	{
-		public bool IsOccupied { get => RestOccupiedMilliseconds != 0; }
+		public long TotalOccupiedTime { get; private set; }
+		public bool IsOccupied => RestOccupiedMilliseconds > 0;
 
-		public int RestOccupiedMilliseconds { get; private set; } = 0;
+		public long RestOccupiedMilliseconds => _occupySeconds - _watch.ElapsedMilliseconds;
+
+		private Stopwatch _watch;
+
+		private long _occupySeconds;
 
 		public Channel()
 		{
-			Task.Run(() =>
-			{
-				while(true)
-				{
-					if(RestOccupiedMilliseconds != 0)
-					{
-						Thread.Sleep(10);
-						RestOccupiedMilliseconds-=10;
-					}
-				}
-			});
+			_watch = Stopwatch.StartNew();
 		}
 		public void Occupy(int milliseconds)
 		{
-			RestOccupiedMilliseconds += milliseconds;
+			_occupySeconds = _watch.ElapsedMilliseconds + milliseconds;
+			TotalOccupiedTime += milliseconds;
 		}
-		
+
+		public void CancelOccupy() => _occupySeconds = _watch.ElapsedMilliseconds;
+
 
 	}
 }
