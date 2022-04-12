@@ -29,22 +29,23 @@ namespace RFID
 
 		private static void EmulateAndPlot()
 		{
-			var emulateCount = 40;
-			var X = new double[emulateCount];
-			var Y = new double[emulateCount];
+			var startEmulateCount = 70;
+			var endEmulateCount = 80;
+			var X = new double[endEmulateCount - startEmulateCount];
+			var Y = new double[endEmulateCount - startEmulateCount];
 			
-			for (var i = 20; i <= emulateCount; i++)
+			for (var i = startEmulateCount; i < endEmulateCount; i++)
 			{
 				Console.WriteLine($"********************************************* The {i} Emulate *********************************************");
-				Thread.Sleep(3000);
+				Thread.Sleep(1000);
 				var consequence = EmulateOnce(i);
 				consequence.Print();
-				X[i-1] = i;
-				Y[i-1] = consequence.ChannelOccupyRatio;
+				X[i-startEmulateCount] = i;
+				Y[i-startEmulateCount] = consequence.ChannelOccupyRatio;
 			}
 
 			Console.WriteLine("*************************************************************************************************");
-			Console.WriteLine($"Emulate {emulateCount} Times");
+			Console.WriteLine($"Emulate {endEmulateCount} Times");
 			Console.WriteLine("Start To Call MatlabPlot...");
 
 			var plot = new MatlabPlot();

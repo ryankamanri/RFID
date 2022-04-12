@@ -45,19 +45,13 @@ namespace RFID.Interrogators
             Log(
                 $"ON CONFLICT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!, Thread : {Thread.CurrentThread.ManagedThreadId}");
             // Cancel The Receive Task. And Send QueryAdjust (Q++)
-            ref var Q = ref _QArea[0];
             _isReceiveTaskCanceled = true;
-            Log("_isReceiveTaskCanceled => true");
-            
-            
-            
-            if (_conflictCountEveryQueryRep >= (Q & 0x0f) / 4)
+
+
+            if (_conflictCountEveryQueryRep >= (_QArea[0] & 0x0f) / 4)
             {
+                _conflictCountEveryQueryRep = int.MinValue;
                 
-                // _QArea[0] = _QArea[++_QIndex];
-                // var queryCommand = BitConverter.GetBytes(Commands.Query).Concat(_QArea[0]);
-                // Environment.Send(this, queryCommand);
-                // Log($"Send New Query Command, Q = {queryCommand[2] & 0x0f}");
                 Task.Run(() =>
                 {
                     Thread.CurrentThread.Priority = ThreadPriority.Lowest;
@@ -65,28 +59,18 @@ namespace RFID.Interrogators
                     if(_channel.IsOccupied) return;
                     Log("AFTER SLOT_TIME _isReceiveTaskCanceled => false");
                     _isReceiveTaskCanceled = false;
+                    _conflictCountEveryQueryRep = 0;
                 });
                 
             }
-            
-           
+
+            _conflictCountEveryQueryRep++;
+
+
         }
 
         public override void Receive(in byte[] response)
         {
-            // // Here Should Make Sure That The Next Action MUST Execute After Receive All RN16s.
-            // if (_isReceiveTaskCanceled)
-            // {
-            //     Thread.CurrentThread.Priority = ThreadPriority.Lowest;
-            //     _channel.Occupy(SLOT_TIME);
-            //     Thread.Sleep(SLOT_TIME);
-            //     Thread.CurrentThread.Priority = ThreadPriority.Normal;
-            //     Log($"Rest Occupy Time : {_channel.RestOccupiedMilliseconds}");
-            //     if(_channel.IsOccupied) return;
-            //     _isReceiveTaskCanceled = false;
-            //     Log("AFTER SLOT_TIME _isReceiveTaskCanceled => false");
-            //     return;
-            // }
             switch (_expectedTagState)
             {
                 case TagState.ArbitrateState:
