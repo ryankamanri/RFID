@@ -9,7 +9,7 @@ namespace RFID.Environments
 {
 	public class Channel
 	{
-		public long TotalOccupiedTime { get; private set; }
+		public long TotalOccupiedTime { get; set; }
 		public bool IsOccupied => RestOccupiedMilliseconds > 0;
 
 		public long RestOccupiedMilliseconds => _occupySeconds - _watch.ElapsedMilliseconds;
@@ -28,7 +28,11 @@ namespace RFID.Environments
 			TotalOccupiedTime += milliseconds;
 		}
 
-		public void CancelOccupy() => _occupySeconds = _watch.ElapsedMilliseconds;
+		public void CancelOccupy()
+		{
+			_occupySeconds = _watch.ElapsedMilliseconds;
+			TotalOccupiedTime -= RestOccupiedMilliseconds;
+		} 
 
 
 	}

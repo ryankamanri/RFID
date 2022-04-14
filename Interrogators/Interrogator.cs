@@ -15,8 +15,11 @@ namespace RFID.Interrogators
     {
         private const int QUERY_REPEAT_TIMES = 3;
 
-        private readonly byte[] _QArea = new byte[1000];
+        private readonly byte[] _QArea = new byte[10];
         private int _QIndex = 0;
+
+        private float _QFloat = 0;
+        private float _C = 0.3f;
 
         private ushort RN16 = ushort.MaxValue;
 
@@ -40,7 +43,8 @@ namespace RFID.Interrogators
         public Interrogator()
         {
             new Random().NextBytes(_QArea);
-            
+            _QArea[0] = 4;
+            _QFloat = 4;
         }
 
         public override void OnConflict()
@@ -56,8 +60,10 @@ namespace RFID.Interrogators
                 
                 _conflictCountEveryQueryRep = int.MinValue;
                 _conflictSlotTimes++;
+                _QFloat = Math.Min(15, _QFloat + _C * 2);
+                Log($"_QFloat++ = {_QFloat}");
 
-                if (_conflictSlotTimes > (_QArea[0] & 0x0f) / 4)
+                if (Math.Round(_QFloat) - (_QArea[0] & 0x0f) >= 1)
                 {
                     _isPauseRepeatTask = true;
                     Log($"There Are TOO MANY CONFLICTS, _isPauseRepeatTask = {_isPauseRepeatTask}");
@@ -116,6 +122,67 @@ namespace RFID.Interrogators
                     break;
             }
         }
+        
+        public void Start()
+        {
+            // Send Query Command. Only Simulate The Q Area.
+            var command = Commands.Query;
+
+            ref var Q = ref _QArea[0];
+            var commandBytes = BitConverter.GetBytes(command);
+            var queryCommand = commandBytes.Concat(Q);
+            // Make Tag At Arbitrate State.
+
+            Log($"Send Query Command, Q = {queryCommand[2] & 0x0f}");
+            Environment.Send(this, queryCommand);
+            Thread.Sleep(SLOT_TIME);
+
+            _expectedTagState = TagState.ArbitrateState;
+            Log($"Send Query Command, Q = {queryCommand[2] & 0x0f}");
+            Environment.Send(this, queryCommand);
+            Thread.Sleep(SLOT_TIME);
+
+            // Recursive Send QueryRepeat Until Be Canceled
+            _isQueryRepeatTaskCanceled = false;
+
+            QueryRepeatTask(ref Q);
+            
+        }
+        
+        public void QueryRepeatTask(ref byte Q)
+        {
+            var queryRepCommand = BitConverter.GetBytes(Commands.QueryRep);
+            Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
+            do
+            {
+                restart:
+                while((_QArea[0] & 0x0f) - Math.Round(_QFloat) < 1)
+                {
+
+                    do Thread.Sleep(SLOT_TIME);
+                    while (_isQueryRepeatTaskCanceled);
+                    Log($"Send QueryRepeat Command");
+                    Environment.Send(this, queryRepCommand);
+                    _isReceiveTaskCanceled = false;
+                    _conflictCountEveryQueryRep = 0;
+                    _QFloat = Math.Max(0, _QFloat - _C);
+                    Log($"_QFloat-- = {_QFloat}");
+                }
+
+                // Q-1, Send Query Adjust Sign.
+                
+                // do Thread.Sleep(SLOT_TIME);
+                // while (_isQueryRepeatTaskCanceled);
+                Thread.Sleep(SLOT_TIME);
+                if(_isQueryRepeatTaskCanceled) goto restart; // Reset The Query Repeat Task.
+                
+                Log($"Send QueryAdjust Command, Q({Q & 0x0f}) Subtract 1");
+                _QArea[0] = (byte)Math.Max(0, _QArea[0] - 1);
+                var queryAdjustCommand = BitConverter.GetBytes(Commands.QueryAdjust).Concat(Commands.QueryAdjust_Down);
+                Environment.Send(this, queryAdjustCommand);
+                _isReceiveTaskCanceled = false;
+            } while ((Q & 0x0f) != 0);
+        }
 
 
         private void OnArbitrateStateCommandReply(byte[] response)
@@ -146,8 +213,8 @@ namespace RFID.Interrogators
                 Log($"Pause The Query Repeat Task, Send New Query");
                 // Pause The Query Repeat Task
                 _isQueryRepeatTaskCanceled = true;
-                
-                _QArea[0] = _QArea[++_QIndex];
+
+                _QArea[0] = (byte)Math.Min(15, _QArea[0] + 1);
                 var queryCommand = BitConverter.GetBytes(Commands.Query).Concat(_QArea[0]);
                 Environment.Send(this, queryCommand);
                 Log($"Send New Query Command, Q = {queryCommand[2] & 0x0f}");
@@ -202,63 +269,8 @@ namespace RFID.Interrogators
             throw new NotImplementedException();
         }
 
-        public void Start()
-        {
-            // Send Query Command. Only Simulate The Q Area.
-            var command = Commands.Query;
+        
 
-            ref var Q = ref _QArea[0];
-            var commandBytes = BitConverter.GetBytes(command);
-            var queryCommand = commandBytes.Concat(Q);
-            // Make Tag At Arbitrate State.
-
-            Log($"Send Query Command, Q = {queryCommand[2] & 0x0f}");
-            Environment.Send(this, queryCommand);
-            Thread.Sleep(SLOT_TIME);
-
-            _expectedTagState = TagState.ArbitrateState;
-            Log($"Send Query Command, Q = {queryCommand[2] & 0x0f}");
-            Environment.Send(this, queryCommand);
-            Thread.Sleep(SLOT_TIME);
-
-            // Recursive Send QueryRepeat Until Be Canceled
-            _isQueryRepeatTaskCanceled = false;
-
-            QueryRepeatTask(ref Q);
-            
-        }
-
-        public void QueryRepeatTask(ref byte Q)
-        {
-            var queryRepCommand = BitConverter.GetBytes(Commands.QueryRep);
-            Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
-            do
-            {
-                restart:
-                for (var i = 0; i <= QUERY_REPEAT_TIMES; i++)
-                {
-
-                    do Thread.Sleep(SLOT_TIME);
-                    while (_isQueryRepeatTaskCanceled);
-                    Log($"Send QueryRepeat Command");
-                    Environment.Send(this, queryRepCommand);
-                    _isReceiveTaskCanceled = false;
-                    _conflictCountEveryQueryRep = 0;
-                }
-
-                // Q-1, Send Query Adjust Sign.
-                
-                // do Thread.Sleep(SLOT_TIME);
-                // while (_isQueryRepeatTaskCanceled);
-                Thread.Sleep(SLOT_TIME);
-                if(_isQueryRepeatTaskCanceled) goto restart; // Reset The Query Repeat Task.
-                
-                Log($"Send QueryAdjust Command, Q({Q & 0x0f}) Subtract 1");
-                Q--;
-                var queryAdjustCommand = BitConverter.GetBytes(Commands.QueryAdjust).Concat(Commands.QueryAdjust_Down);
-                Environment.Send(this, queryAdjustCommand);
-                _isReceiveTaskCanceled = false;
-            } while ((Q & 0x0f) < 0x0f);
-        }
+        
     }
 }

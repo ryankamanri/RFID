@@ -12,7 +12,7 @@ namespace RFID.Environments
 	{
 		private const int SEND_FRAME_TIME = Object.HALF_SLOT_TIME;
 		
-		private const bool IS_LOG_INTERREGATOR = true;
+		private const bool IS_LOG_INTERREGATOR = false;
 		private const bool IS_LOG_TAG = false;
 		
 		public class Object
@@ -141,7 +141,7 @@ namespace RFID.Environments
 				Thread.CurrentThread.Priority = ThreadPriority.Normal;
 				return;
 			}
-			Channel.Occupy(SEND_FRAME_TIME);
+			Channel.Occupy(Object.SLOT_TIME);
 			_mutex.ReleaseMutex();
 
 			if (@object.GetType().IsSubclassOf(typeof(TagObject)))

@@ -23,14 +23,14 @@ namespace RFID
 	{
 		private static void Main(string[] args)
 		{
-			EmulateAndPlot();
+
+			EmulateAndPlot(1, 20);
+			
 			Thread.Sleep(10000);
 		}
 
-		private static void EmulateAndPlot()
+		private static void EmulateAndPlot(int startEmulateCount = 1, int endEmulateCount = 100)
 		{
-			var startEmulateCount = 70;
-			var endEmulateCount = 80;
 			var X = new double[endEmulateCount - startEmulateCount];
 			var Y = new double[endEmulateCount - startEmulateCount];
 			
@@ -102,8 +102,8 @@ namespace RFID
 			var consequence = new Consequence(
 				tagCount: tags.Count,
 				totalElapsedTime: elapsedTime,
-				totalOccupiedSlot: (int)(env.Channel.TotalOccupiedTime * 2 / Environment.Object.SLOT_TIME),
-				channelOccupyRatio: env.Channel.TotalOccupiedTime * 2 / elapsedTime.TotalMilliseconds);
+				totalOccupiedSlot: (int)(env.Channel.TotalOccupiedTime / Environment.Object.SLOT_TIME),
+				channelOccupyRatio: (tagCount * Environment.Object.SLOT_TIME) / elapsedTime.TotalMilliseconds);
 			
 
 			return consequence;
