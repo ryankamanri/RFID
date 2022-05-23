@@ -24,7 +24,7 @@ namespace RFID
 		private static void Main(string[] args)
 		{
 
-			EmulateAndPlot(1, 20);
+			EmulateAndPlot(21, 41);
 			
 			Thread.Sleep(10000);
 		}
@@ -96,6 +96,9 @@ namespace RFID
 			watch.Start();
 			
 			interrogator.Start();
+			
+			watch.Stop();
+			elapsedTime = watch.Elapsed;
 			
 			Thread.Sleep(Environment.Object.SLOT_TIME);
 

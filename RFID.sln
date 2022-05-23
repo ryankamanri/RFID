@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RFID", "RFID.csproj", "{C03
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyPlotHelper", "D:\mathwork\matlab\bin\export\MyPlot\MyPlotHelper\MyPlotHelper.csproj", "{13F732A3-A755-4B55-BE3A-8C1F8BE3430D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arithmatics", "Arithmatics\Arithmatics.csproj", "{ABB56C51-D5C7-47C9-A1D2-0E1680F179F5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{13F732A3-A755-4B55-BE3A-8C1F8BE3430D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{13F732A3-A755-4B55-BE3A-8C1F8BE3430D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{13F732A3-A755-4B55-BE3A-8C1F8BE3430D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ABB56C51-D5C7-47C9-A1D2-0E1680F179F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ABB56C51-D5C7-47C9-A1D2-0E1680F179F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ABB56C51-D5C7-47C9-A1D2-0E1680F179F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ABB56C51-D5C7-47C9-A1D2-0E1680F179F5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

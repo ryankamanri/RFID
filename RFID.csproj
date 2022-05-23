@@ -9,4 +9,16 @@
     <ProjectReference Include="D:\mathwork\matlab\bin\export\MyPlot\MyPlotHelper\MyPlotHelper.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="Arithmatics\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Remove="Arithmatics\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Arithmatics\**" />
+  </ItemGroup>
+
 </Project>
